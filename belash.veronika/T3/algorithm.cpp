@@ -1,15 +1,16 @@
-﻿#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <vector>
-#include <algorithm>
-#include <numeric>
+﻿#include <algorithm>
+#include <cstddef>
+#include <cstdlib>
 #include <functional>
 #include <iomanip>
-#include <string>
-#include <cmath>
-#include <cstdlib>
+#include <iostream>
+#include <fstream>
+#include <istream>
+#include <numeric>
+#include <sstream>
 #include <iterator>
+#include <string>
+#include <vector>
 
 struct Point {
     int x, y;
@@ -38,18 +39,11 @@ struct AreaCalculator {
             return acc + term;
         }
     };
-
     double operator()(const Polygon& p) const {
         if (p.points.empty()) return 0.0;
         long long sum = std::accumulate(p.points.begin(), p.points.end(), 0LL,
             GaussSum(p.points));
         return std::abs(sum) / 2.0;
-    }
-};
-
-struct VertexCount {
-    size_t operator()(const Polygon& p) const {
-        return p.points.size();
     }
 };
 
@@ -137,19 +131,15 @@ struct NormalizePolygon {
 struct IsSameWithShift {
     Polygon target_norm;
     size_t target_size;
-
     IsSameWithShift(const Polygon& t) : target_size(t.points.size()) {
         if (!t.points.empty()) {
             target_norm = NormalizePolygon()(t);
         }
     }
-
     bool operator()(const Polygon& other) const {
         if (target_size != other.points.size()) return false;
         if (target_size == 0) return true;
-
         Polygon other_norm = NormalizePolygon()(other);
-
         for (size_t shift = 0; shift < target_size; ++shift) {
             bool match = true;
             for (size_t i = 0; i < target_size; ++i) {
@@ -167,9 +157,7 @@ struct IsSameWithShift {
 struct RemoveConsecutiveTarget {
     Polygon target;
     mutable bool last_was_target_and_kept;
-
     RemoveConsecutiveTarget(const Polygon& t) : target(t), last_was_target_and_kept(false) {}
-
     bool operator()(const Polygon& p) const {
         if (p == target) {
             if (last_was_target_and_kept) {
@@ -184,6 +172,8 @@ struct RemoveConsecutiveTarget {
 };
 
 std::istream& operator>>(std::istream& in, Point& dest) {
+    std::istream::sentry sentry(in);
+    if (!sentry) return in;
     char c1, c2, c3;
     int x, y;
     if (in >> c1 >> x >> c2 >> y >> c3 && c1 == '(' && c2 == ';' && c3 == ')') {
@@ -196,6 +186,8 @@ std::istream& operator>>(std::istream& in, Point& dest) {
 }
 
 std::istream& operator>>(std::istream& in, Polygon& dest) {
+    std::istream::sentry sentry(in);
+    if (!sentry) return in;
     size_t n;
     if (!(in >> n) || n < 3) {
         in.setstate(std::ios::failbit);
@@ -204,7 +196,7 @@ std::istream& operator>>(std::istream& in, Polygon& dest) {
     Polygon tmp;
     tmp.points.resize(n);
     std::copy_n(std::istream_iterator<Point>(in), n, tmp.points.begin());
-    if (in) dest = tmp;
+    if (in) dest = std::move(tmp);
     return in;
 }
 
@@ -213,7 +205,6 @@ int main(int argc, char* argv[]) {
         std::cerr << "Usage: " << argv[0] << " <filename>\n";
         return 1;
     }
-
     std::ifstream file(argv[1]);
     if (!file.is_open()) {
         std::cerr << "Error: cannot open file " << argv[1] << "\n";
@@ -348,7 +339,7 @@ int main(int argc, char* argv[]) {
             std::getline(iss, rest);
             std::istringstream rest_iss(rest);
             Polygon target;
-            if (!(rest_iss >> target)) {
+            if (!(rest_iss >> target) || !(rest_iss >> std::ws) || !rest_iss.eof()) {
                 std::cout << "<INVALID COMMAND>\n";
             }
             else {
@@ -361,7 +352,7 @@ int main(int argc, char* argv[]) {
             std::getline(iss, rest);
             std::istringstream rest_iss(rest);
             Polygon target;
-            if (!(rest_iss >> target)) {
+            if (!(rest_iss >> target) || !(rest_iss >> std::ws) || !rest_iss.eof()) {
                 std::cout << "<INVALID COMMAND>\n";
             }
             else {
