@@ -1,8 +1,7 @@
 #include <iostream>
-using namespace std;
 
 int main() {
-    cout << "karam.alburaim";
-    cout.flush();
+    std::cout << "karam.alburaim";
+    std::endl;
     return 0;
 }
