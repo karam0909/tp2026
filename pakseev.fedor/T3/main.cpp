@@ -194,7 +194,7 @@ int main(int argc, char* argv[]) {
                         continue;
                     }
                     double res = std::accumulate(polygons.begin(), polygons.end(), 0.0,
-                    AreaSummator([](const Polygon& p){ return true; }));
+                    AreaSummator([](const Polygon& p){ return p == p; }));
                     std::cout << res / polygons.size() << std::endl;
                 }
 
