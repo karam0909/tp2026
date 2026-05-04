@@ -272,7 +272,6 @@ int main(int argc, char* argv[]) {
         else if (cmd == "COUNT") {
             std::string subcmd;
             if (!(std::cin >> subcmd)) break;
-
             if (subcmd == "EVEN") std::cout << std::count_if(polys.begin(), polys.end(), isEvenFunc) << "\n";
             else if (subcmd == "ODD") std::cout << std::count_if(polys.begin(), polys.end(), isOddFunc) << "\n";
             else {
