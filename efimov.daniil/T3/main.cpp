@@ -336,7 +336,7 @@ int main(int argc, char* argv[]) {
             std::string param;
             iss >> param;
 
-            if (iss >> std::ws && !iss.eof() || storage.empty()) {
+            if ((iss >> std::ws && !iss.eof()) || storage.empty()) {
                 std::cout << "<INVALID COMMAND>\n";
                 continue;
             }
@@ -357,7 +357,7 @@ int main(int argc, char* argv[]) {
             std::string param;
             iss >> param;
 
-            if (iss >> std::ws && !iss.eof() || storage.empty()) {
+            if ((iss >> std::ws && !iss.eof()) || storage.empty()) {
                 std::cout << "<INVALID COMMAND>\n";
                 continue;
             }
