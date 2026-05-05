@@ -11,8 +11,8 @@
 #include <string>
 #include <vector>
 //Variant 3 LESSAREA  INTERSECTIONS
-using namespace std::placeholders;
 
+using namespace std::placeholders;
 struct Point
 {
     int x, y;
@@ -27,8 +27,8 @@ bool operator==(const Point& a, const Point& b) {
 }
 bool operator==(const Polygon& a, const Polygon& b) {
     if (a.points.size() == b.points.size()) {
-        return std::equal(a.points.begin(),
-        b.points.end(), b.points.begin());
+        return std::equal(a.points.begin(), 
+        b.points.end(),  b.points.begin());
     }
     return false;
 }
@@ -105,29 +105,43 @@ double getArea(const Polygon& poly) {
     return std::abs(sum) / 2.0;
 }
 struct SumAreaIfEven {
-    double operator()(double acc, const Polygon& a) {
+    double operator()(double acc, const Polygon& a) const{
         return (a.points.size() % 2 == 0) ? acc + getArea(a) : acc;
+    }
 };
 struct SumAreaIfOdd {
-
-    double operator()(double acc, const Polygon& a) {
-
+    double operator()(double acc, const Polygon& a) const{
         return (a.points.size() % 2 != 0) ? acc + getArea(a) : acc;
-
     }
-
 };
 struct SumArea {
-    double operator()(double acc, const Polygon& a) {
+    double operator()(double acc, const Polygon& a) const{
         return acc + getArea(a);
     }
 };
-
 
 struct SumAreaIfVertexCount {
     std::size_t n;
     explicit SumAreaIfVertexCount(std::size_t n_) : n(n_) {}
     double operator()(double acc, const Polygon& p) const {
+        return (p.points.size() == n) ? acc + getArea(p) : acc;
+    }
+};
+struct CompareByArea {
+    bool operator()(const Polygon& a, const Polygon& b) const {
+        return getArea(a) < getArea(b);
+    }
+};
+
+struct CompareByVertexCount {
+    bool operator()(const Polygon& a, const Polygon& b) const {
+        return a.points.size() < b.points.size();
+    }
+};
+
+struct IsEvenVertex {
+    bool operator()(const Polygon& p) const {
+        return p.points.size() % 2 == 0;
     }
 };
 
@@ -175,9 +189,6 @@ static bool segmentsIntersect(const Point& a, const Point& b,
     if (o1 == 0 && onSegment(a, b, c)) return true;
     if (o2 == 0 && onSegment(a, b, d)) return true;
     if (o3 == 0 && onSegment(c, d, a)) return true;
-        return (p.points.size() == n) ? acc + getArea(p) : acc;
-    bool operator()(const Polygon& p) const {
-        return p.points.size() % 2 == 0;
     if (o4 == 0 && onSegment(c, d, b)) return true;
     return false;
 }
@@ -367,7 +378,7 @@ int main(int argc, char* argv[]) {
                 else if (param == "ODD") {
                     auto cnt = std::count_if(polygons.begin(), polygons.end(),
                         std::bind(std::logical_not<bool>(),
-                            std::bind(IsEvenVertex(), std::placeholders::_1)));
+                            std::bind(IsEvenVertex(), _1)));
                     std::cout << cnt << "\n";
                 }
                 else {
@@ -393,7 +404,8 @@ int main(int argc, char* argv[]) {
                     continue;
                 }
                 double targetArea = getArea(target);
-                auto cnt = std::count_if(polygons.begin(), polygons.end(), LessArea(targetArea));
+                auto cnt = std::count_if(polygons.begin(), polygons.end(), 
+                LessArea(targetArea));
                 std::cout << cnt << "\n";
             }
             else if (cmd == "INTERSECTIONS") {
@@ -404,7 +416,7 @@ int main(int argc, char* argv[]) {
                 }
 
                 auto cnt = std::count_if(polygons.begin(), polygons.end(),
-                    std::bind(PolygonsIntersect(), std::placeholders::_1, target));
+                    std::bind(PolygonsIntersect(), _1, target));
                 std::cout << cnt << "\n";
             }
             else {
@@ -418,19 +430,4 @@ int main(int argc, char* argv[]) {
     }
 
     return 0;
-}};
-
-struct IsEvenVertex {
-};
-        return a.points.size() < b.points.size();
-    }
-
-struct CompareByVertexCount {
-    bool operator()(const Polygon& a, const Polygon& b) const {
-    }
-};
-    }
-struct CompareByArea {
-    bool operator()(const Polygon& a, const Polygon& b) const {
-        return getArea(a) < getArea(b);
-
+}
