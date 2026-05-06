@@ -28,7 +28,7 @@ bool operator==(const Point& a, const Point& b) {
 bool operator==(const Polygon& a, const Polygon& b) {
     if (a.points.size() == b.points.size()) {
         return std::equal(a.points.begin(),
-        b.points.end(),
+        a.points.end(),
         b.points.begin());
     }
     return false;
@@ -83,12 +83,12 @@ std::istream& operator>>(std::istream& in, Polygon& a) {
 struct AreaCalculator {
     const std::vector<Point>& pts;
     std::size_t size;
-    std::size_t idx;
+    mutable std::size_t idx;
 
     explicit AreaCalculator(const std::vector<Point>& pts)
         : pts(pts), size(pts.size()), idx(0) {}
 
-    long long operator()(long long acc, const Point& curr) {
+    long long operator()(long long acc, const Point& curr) const{
         const Point& next = pts[(idx + 1) % size];
         long long term = static_cast<long long>(curr.x) * next.y
             - static_cast<long long>(next.x) * curr.y;
@@ -194,36 +194,161 @@ static bool segmentsIntersect(const Point& a, const Point& b,
     return false;
 }
 
-static bool pointInPolygon(const Point& p, const Polygon& poly) {
-    const auto& pts = poly.points;
-    size_t n = pts.size();
-    if (n < 3) return false;
-    bool inside = false;
-    for (size_t i = 0, j = n - 1; i < n; j = i++) {
-        const Point& a = pts[i];
-        const Point& b = pts[j];
-        if ((a.y > p.y) != (b.y > p.y)) {
-            double xIntersect = (b.x - a.x) * static_cast<double>(p.y - a.y) /
-                (b.y - a.y) + a.x;
-            if (static_cast<double>(p.x) < xIntersect) inside = !inside;
-        }
-    }
-    return inside;
-}
+struct AccumulateCrosses{
+    const Polygon& poly;
+    const Point& p;
+    int n;
+    AccumulateCrosses(const Polygon& pl, const Point& pt, int N)
+        : poly(pl), p(pt), n(N){}
 
-struct PolygonsIntersect {
-    bool operator()(const Polygon& a, const Polygon& b) const {
-        for (size_t i = 0; i < a.points.size(); ++i) {
-            const Point& a1 = a.points[i];
-            const Point& a2 = a.points[(i + 1) % a.points.size()];
-            for (size_t j = 0; j < b.points.size(); ++j) {
-                const Point& b1 = b.points[j];
-                const Point& b2 = b.points[(j + 1) % b.points.size()];
-                if (segmentsIntersect(a1, a2, b1, b2)) return true;
-            }
+    int operator()(int count, int i) const{
+        int j = (i + 1) % n;
+        const Point& a = poly.points[i];
+        const Point& b = poly.points[j];
+
+        bool cond1 = (a.y > p.y) != (b.y > p.y);
+        if (!cond1){
+            return count;
         }
-        if (pointInPolygon(a.points[0], b)) return true;
-        if (pointInPolygon(b.points[0], a)) return true;
+        double xIntersect = (b.x - a.x) * static_cast<double>(p.y - a.y) /
+            (b.y - a.y) + a.x;
+        if (static_cast<double>(p.x) < xIntersect) {
+            return count + 1;
+        }
+        return count;
+    }
+};
+
+struct PointInPolygon{
+    const Polygon& poly;
+    PointInPolygon(const Polygon& p) : poly(p) {}
+    bool operator()(const Point& p) const{
+        int n = poly.points.size();
+        std::vector<int> index(n);
+        std::iota(index.begin(), index.end(), 0);
+        int count = std::accumulate(index.begin(), index.end(), 0,
+            AccumulateCrosses(poly, p, n));
+        return count % 2 == 1;
+    }
+};
+struct SideIntersectionChecker{
+    const Polygon& poly1;
+    const Polygon& poly2;
+    int i;
+    int j;
+    int k;
+    SideIntersectionChecker(const Polygon& p1, const Polygon& p2, int idx1, int idx2)
+        : poly1(p1), poly2(p2), i(idx1),
+        j((idx1 + 1) % p1.points.size()),
+        k(idx2){}
+
+    bool operator()() const{
+        int l = (k + 1) % poly2.points.size();
+        return segmentsIntersect(poly1.points[i], poly1.points[j],
+            poly2.points[k], poly2.points[l]);
+    }
+};
+
+struct OneSideVsOneSideWrapper{
+    const Polygon& poly1;
+    const Polygon& poly2;
+    int i;
+    int j;
+
+    OneSideVsOneSideWrapper(const Polygon& p1, const Polygon& p2, int idx)
+        : poly1(p1), poly2(p2), i(idx), j((idx + 1) % p1.points.size()){}
+
+    bool operator()(int k) const{
+        int l = (k + 1) % poly2.points.size();
+        return segmentsIntersect(poly1.points[i], poly1.points[j],
+            poly2.points[k], poly2.points[l]);
+    }
+};
+
+struct OneSideVsAllSides{
+    const Polygon& poly1;
+    const Polygon& poly2;
+    int i;
+
+    OneSideVsAllSides(const Polygon& p1, const Polygon& p2, int idx)
+        : poly1(p1), poly2(p2), i(idx) {}
+
+    bool operator()() const{
+        int n2 = poly2.points.size();
+        std::vector<int> index2(n2);
+        std::iota(index2.begin(), index2.end(), 0);
+
+        std::vector<bool> intersections(n2);
+        std::transform(index2.begin(), index2.end(),
+            intersections.begin(),
+            OneSideVsOneSideWrapper(poly1, poly2, i));
+
+        auto it = std::find(intersections.begin(), intersections.end(), true);
+        return it != intersections.end();
+    }
+};
+
+struct SideChecker{
+    const Polygon& poly1;
+    const Polygon& poly2;
+    SideChecker(const Polygon& p1, const Polygon& p2) : poly1(p1), poly2(p2){}
+    bool operator()(int i) const{
+        return OneSideVsAllSides(poly1, poly2, i)();
+    }
+};
+
+struct AnySideIntersects{
+    const Polygon& poly1;
+    const Polygon& poly2;
+
+    AnySideIntersects(const Polygon& p1, const Polygon& p2) : poly1(p1), poly2(p2){}
+
+    bool operator()() const{
+        int n1 = poly1.points.size();
+        std::vector<int> index1(n1);
+        std::iota(index1.begin(), index1.end(), 0);
+        std::vector<bool> hasIntersection(n1);
+
+        std::transform(index1.begin(), index1.end(), hasIntersection.begin(),
+            SideChecker(poly1, poly2));
+        auto it = std::find(hasIntersection.begin(), hasIntersection.end(), true);
+        return it != hasIntersection.end();
+    }
+};
+
+struct PointToBool{
+    const Polygon& poly;
+    PointToBool(const Polygon& out) : poly(out){}
+    bool operator()(const Point& p) const{
+        PointInPolygon p1(poly);
+        return p1(p);
+    }
+};
+
+struct AnyPointInside{
+    const Polygon& outer;
+    const Polygon& inner;
+    AnyPointInside(const Polygon& out, const Polygon& in) : outer(out), inner(in){}
+    bool operator()() const{
+        std::vector<bool> inside(inner.points.size());
+        std::transform(inner.points.begin(), inner.points.end(), inside.begin(),
+            PointToBool(outer));
+        auto it = std::find(inside.begin(), inside.end(), true);
+        return it != inside.end();
+    }
+};
+
+struct PolygonsIntersect{
+    bool operator()(const Polygon& poly1, const Polygon& poly2) const{
+        if (AnySideIntersects(poly1, poly2)()){
+            return true;
+        }
+        if (AnyPointInside(poly2, poly1)()){
+            return true;
+        }
+        if (AnyPointInside(poly1, poly2)()){
+            return true;
+        }
         return false;
     }
 };
@@ -318,6 +443,11 @@ int main(int argc, char* argv[]) {
             else if (cmd == "MAX") {
                 std::string param;
                 iss >> param;
+                char extra;
+                if (iss >> extra) {
+                    std::cout << "<INVALID COMMAND>\n";
+                    continue;
+                }
 
                 if (polygons.empty()) {
                     std::cout << "<INVALID COMMAND>\n";
@@ -341,7 +471,11 @@ int main(int argc, char* argv[]) {
             else if (cmd == "MIN") {
                 std::string param;
                 iss >> param;
-
+                char extra;
+                if (iss >> extra) {
+                    std::cout << "<INVALID COMMAND>\n";
+                    continue;
+                }
                 if (polygons.empty()) {
                     std::cout << "<INVALID COMMAND>\n";
                     continue;
@@ -441,6 +575,5 @@ int main(int argc, char* argv[]) {
         return 1;
 
     }
-
     return 0;
 }
