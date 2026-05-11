@@ -32,14 +32,11 @@ namespace nspace {
   std::istream& operator>>(std::istream& in, DataStruct& dest) {
     std::istream::sentry sentry(in);
     if (!sentry) return in;
-
     DataStruct temp{0, {0.0, 0.0}, ""};
-    in >> Delim{'('} >> Delim{':'};
-
+    if (!(in >> Delim{'('} >> Delim{':'})) return in;
     for (int i = 0; i < 3; ++i) {
       std::string key;
-      in >> key;
-
+      std::getline(in, key, ' ');
       if (key == "key1") {
         in >> std::hex >> temp.key1 >> std::dec >> Delim{':'};
       } else if (key == "key2") {
@@ -54,16 +51,13 @@ namespace nspace {
         in.setstate(std::ios::failbit);
       }
     }
-    in >> Delim{')'};
-
-    if (in) dest = temp;
+    if (in >> Delim{')'}) dest = temp;
     return in;
   }
 
   std::ostream& operator<<(std::ostream& out, const DataStruct& src) {
     std::ostream::sentry sentry(out);
     if (!sentry) return out;
-    
     out << "(:key1 0x" << std::uppercase << std::hex << src.key1 << std::dec << std::nouppercase;
     out << ":key2 #c(" << std::fixed << std::setprecision(1) << src.key2.real() << " " << src.key2.imag() << ")";
     out << ":key3 \"" << src.key3 << "\":)";
@@ -80,7 +74,6 @@ namespace nspace {
 int main() {
   using namespace nspace;
   std::vector<DataStruct> data;
-
   while (!std::cin.eof()) {
     std::copy(
       std::istream_iterator<DataStruct>(std::cin),
@@ -92,14 +85,11 @@ int main() {
       std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     }
   }
-
   std::sort(data.begin(), data.end(), compareData);
-
   std::copy(
     data.begin(),
     data.end(),
     std::ostream_iterator<DataStruct>(std::cout, "\n")
   );
-
   return 0;
 }
